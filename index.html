@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DreamDEX Survival Bot — Shannon Testnet (50312)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-mono p-6">
+  <div class="max-w-6xl mx-auto space-y-6">
+    
+    <!-- HEADER -->
+    <div class="flex flex-wrap items-center justify-between bg-slate-900 border border-slate-800 rounded-xl p-4">
+      <div>
+        <div class="flex items-center gap-3">
+          <span id="connDot" class="w-3 h-3 rounded-full bg-amber-400 animate-pulse"></span>
+          <h1 class="text-xl font-bold tracking-wider text-emerald-400">DREAMDEX SURVIVAL BOT // SHANNON (50312)</h1>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">Market: <span id="activeMarket" class="text-slate-200">Connecting to ws://localhost:8080...</span></p>
+      </div>
+      <div class="flex items-center gap-3 mt-3 sm:mt-0">
+        <span id="brainBadge" class="px-3 py-1 text-xs rounded-full bg-indigo-950 text-indigo-300 border border-indigo-700">BRAIN: --</span>
+        <span id="statusBadge" class="px-3 py-1 text-xs font-bold rounded-full bg-emerald-950 text-emerald-400 border border-emerald-700">ALIVE</span>
+        <button onclick="sendCmd('SIMULATE_TICK')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs rounded-lg transition">
+          ⚡ Step Next Window
+        </button>
+        <button onclick="sendCmd('REVIVE')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg border border-slate-700 transition">
+          🔄 Revive Bot
+        </button>
+      </div>
+    </div>
+
+    <!-- VITALS ROW (HP, HUNGER, BRIER, STREAK) -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <!-- HP BAR -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <div class="flex justify-between text-xs text-slate-400 mb-1">
+          <span>HP (tUSDC BANKROLL)</span>
+          <span id="hpText" class="text-emerald-400 font-bold">10.00 / 10.00</span>
+        </div>
+        <div class="w-full bg-slate-800 h-4 rounded-full overflow-hidden">
+          <div id="hpBar" class="bg-emerald-500 h-full transition-all duration-500" style="width: 100%"></div>
+        </div>
+        <p class="text-[11px] text-slate-500 mt-2">Permadeath below 0.50 tUSDC</p>
+      </div>
+
+      <!-- HUNGER METER -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <div class="flex justify-between text-xs text-slate-400 mb-1">
+          <span>METABOLIC HUNGER</span>
+          <span id="hungerText" class="text-amber-400 font-bold">0%</span>
+        </div>
+        <div class="w-full bg-slate-800 h-4 rounded-full overflow-hidden">
+          <div id="hungerBar" class="bg-amber-500 h-full transition-all duration-500" style="width: 0%"></div>
+        </div>
+        <p class="text-[11px] text-slate-500 mt-2">&gt;75% lowers minimum edge to 3.5%</p>
+      </div>
+
+      <!-- BRIER ACCURACY -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <div class="text-xs text-slate-400">BRIER CALIBRATION SCORE</div>
+        <div id="brierText" class="text-2xl font-bold text-cyan-400 mt-1">0.215</div>
+        <p class="text-[11px] text-slate-500 mt-1">Lower is smarter (0.250 = coin flip)</p>
+      </div>
+
+      <!-- WIN STREAK -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <div class="text-xs text-slate-400">CURRENT WIN STREAK</div>
+        <div id="streakText" class="text-2xl font-bold text-purple-400 mt-1">0 🔥</div>
+        <p class="text-[11px] text-slate-500 mt-1">Quarter-Kelly Armor Cap: 15% HP</p>
+      </div>
+    </div>
+
+    <!-- CORTEX MONOLOGUE & QUANT TELEMETRY -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="md:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <div class="text-xs text-slate-400 uppercase mb-2">🧠 Live Survival Cortex Thought Stream</div>
+        <div id="thoughtBox" class="bg-slate-950 border border-slate-800 rounded-lg p-4 text-sm text-emerald-300 min-h-[72px] flex items-center">
+          Waiting for first tick from bot-server.ts...
+        </div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2 text-xs">
+        <div class="text-slate-400 uppercase mb-2">📊 Order Book vs. Bot Edge</div>
+        <div class="flex justify-between"><span>CLOB UP Ask (q_up):</span><span id="qUp" class="font-bold">--</span></div>
+        <div class="flex justify-between"><span>CLOB DOWN Ask (q_down):</span><span id="qDown" class="font-bold">--</span></div>
+        <div class="flex justify-between"><span>Order Book Imbalance:</span><span id="obi" class="font-bold">--</span></div>
+        <div class="flex justify-between"><span>Bot True P(Up):</span><span id="pUp" class="font-bold text-cyan-400">--</span></div>
+        <div class="flex justify-between border-t border-slate-800 pt-1"><span>Computed Net Edge:</span><span id="netEdge" class="font-bold text-emerald-400">--</span></div>
+      </div>
+    </div>
+
+    <!-- TRADE & SURVIVAL LOG -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+      <div class="text-xs text-slate-400 uppercase mb-3">📜 On-Chain Window Survival Log</div>
+      <div id="historyList" class="space-y-2 max-h-64 overflow-y-auto text-xs"></div>
+    </div>
+
+  </div>
+
+  <script>
+    let ws;
+    function connect() {
+      ws = new WebSocket("ws://localhost:8080");
+      ws.onopen = () => {
+        document.getElementById("connDot").className = "w-3 h-3 rounded-full bg-emerald-400";
+      };
+      ws.onclose = () => {
+        document.getElementById("connDot").className = "w-3 h-3 rounded-full bg-rose-500";
+        setTimeout(connect, 2000);
+      };
+      ws.onmessage = (e) => {
+        const { state } = JSON.parse(e.data);
+        if (!state) return;
+
+        document.getElementById("activeMarket").textContent = state.activeMarket;
+        document.getElementById("brainBadge").textContent = "BRAIN: " + state.brainMode;
+        document.getElementById("statusBadge").textContent = state.status;
+
+        const hpPct = Math.max(0, Math.min(100, (state.hpUsd / state.maxHpUsd) * 100));
+        document.getElementById("hpText").textContent = `${state.hpUsd.toFixed(2)} / ${state.maxHpUsd.toFixed(2)} tUSDC`;
+        document.getElementById("hpBar").style.width = hpPct + "%";
+
+        document.getElementById("hungerText").textContent = state.hunger + "%";
+        document.getElementById("hungerBar").style.width = state.hunger + "%";
+
+        document.getElementById("brierText").textContent = state.brierScore.toFixed(3);
+        document.getElementById("streakText").textContent = state.winStreak + " 🔥";
+        document.getElementById("thoughtBox").textContent = state.lastThought;
+
+        if (state.lastQuant) {
+          document.getElementById("qUp").textContent = state.lastQuant.upAsk;
+          document.getElementById("qDown").textContent = state.lastQuant.downAsk;
+          document.getElementById("obi").textContent = state.lastQuant.obi;
+          document.getElementById("pUp").textContent = (state.lastQuant.pUp * 100).toFixed(1) + "%";
+          document.getElementById("netEdge").textContent = (state.lastQuant.edge * 100).toFixed(1) + "%";
+        }
+
+        const list = document.getElementById("historyList");
+        list.innerHTML = state.history.slice().reverse().map(item => `
+          <div class="flex justify-between items-center bg-slate-950 border border-slate-800 px-3 py-2 rounded">
+            <span class="text-slate-400">${item.time}</span>
+            <span class="font-semibold ${item.action.includes('WIN') ? 'text-emerald-400' : item.action.includes('LOSS') ? 'text-rose-400' : 'text-slate-200'}">${item.action}</span>
+            <span class="text-slate-300">HP: ${item.hp.toFixed(2)} tUSDC (Edge: ${(item.edge * 100).toFixed(1)}%)</span>
+          </div>
+        `).join("");
+      };
+    }
+    function sendCmd(type) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type }));
+      }
+    }
+    connect();
+  </script>
+</body>
+</html>
